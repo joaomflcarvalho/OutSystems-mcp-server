@@ -3,7 +3,7 @@
  * Provides secure error handling and proper timeout management
  */
 
-import { logger } from './logger';
+import { logger } from './logger.js';
 
 export class ApiError extends Error {
   constructor(

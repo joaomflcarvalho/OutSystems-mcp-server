@@ -1,10 +1,18 @@
 /**
  * Structured logging utility with debug/info/error levels
- * Respects DEBUG and LOG_LEVEL environment variables
+ * Compatible with both Node.js and Cloudflare Workers
  */
 
-const DEBUG = process.env.DEBUG === 'true';
-const LOG_LEVEL = process.env.LOG_LEVEL || 'info'; // 'silent', 'error', 'info', 'debug'
+// Safe access to environment variables - works in both Node.js and Workers
+function getEnvVar(name: string, defaultValue: string): string {
+  if (typeof process !== 'undefined' && process.env) {
+    return process.env[name] || defaultValue;
+  }
+  return defaultValue;
+}
+
+const DEBUG = getEnvVar('DEBUG', 'false') === 'true';
+const LOG_LEVEL = getEnvVar('LOG_LEVEL', 'info'); // 'silent', 'error', 'info', 'debug'
 
 export interface Logger {
   debug(message: string, meta?: Record<string, any>): void;

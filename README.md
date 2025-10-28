@@ -1,109 +1,161 @@
 # OutSystems MCP Server
 
-This is a Model Context Protocol (MCP) server that generates OutSystems applications from a text prompt. It is designed to be used with MCP clients like Raycast and Perplexity, or as a standalone HTTP API.
+<p align="center">
+  <strong>Production-ready Model Context Protocol server for generating OutSystems applications</strong><br/>
+  <em>Deploy to Cloudflare Workers • Integrate with ChatGPT • Build apps from natural language</em>
+</p>
 
-## Demo
+[![Deploy to Cloudflare Workers](https://deploy.workers.cloudflare.com/button)](https://deploy.workers.cloudflare.com/?url=https://github.com/joaomflcarvalho/OutSystems-mcp-server)
 
-[![Demo Video](./demos/demo.gif)](./demos/MCP%20Server%20Demo.mp4)
+## 🚀 What is This?
 
-## Architecture
+This is a **Model Context Protocol (MCP) server** that generates and deploys OutSystems applications from natural language descriptions. It supports two deployment modes:
 
-The server is built with TypeScript and uses the official `@modelcontextprotocol/sdk` for handling MCP communication. It exposes a single tool, `createOutSystemsApp`, which generates and deploys an OutSystems application from a prompt. The tool is implemented as an async generator, streaming progress updates to the client. All OutSystems API logic is modularized for maintainability.
+1. **🔌 Stdio Mode** - For local MCP clients (Raycast, Perplexity, etc.)
+2. **☁️ Cloudflare Workers** - For ChatGPT GPT Store and HTTP integrations
 
-## Project Structure
+## ✨ Features
 
-```text
-.
-├── .env.example
-├── package.json
-├── tsconfig.json
-└── src/
-    ├── stdio-server.ts         # Main MCP stdio server entry point
-    ├── services/
-    │   ├── outsystems-api.ts   # OutSystems API logic (with retry & backoff)
-    │   └── token-manager.ts    # Token management (with actual expiry)
-    ├── types/
-    │   └── api-types.ts        # TypeScript type definitions
-    └── utils/
-        ├── getOutsystemsToken.ts # Token acquisition utility
-        ├── logger.ts           # Structured logging utility
-        └── apiClient.ts        # API client with timeout & retry
-```
+- ✅ **Production-Ready** - Fully tested, typed, and documented
+- ✅ **Streaming Progress** - Real-time updates during app creation
+- ✅ **Cloudflare Workers** - Serverless deployment with global edge network
+- ✅ **ChatGPT Integration** - Publish as a GPT in the GPT Store
+- ✅ **Secure by Default** - Bearer token auth, CORS, input validation
+- ✅ **Auto-Deployment** - GitHub Actions CI/CD pipeline included
+- ✅ **Enterprise-Grade** - Exponential backoff, retries, error handling
+- ✅ **Fully Typed** - TypeScript with complete type safety
 
-- `src/stdio-server.ts`: Main entry point for the MCP server. Handles stdio transport, tool registration, and input validation.
-- `src/services/outsystems-api.ts`: Contains the logic for interacting with the OutSystems platform with exponential backoff polling.
-- `src/services/token-manager.ts`: Handles OutSystems API token caching and refresh using actual API expiry times.
-- `src/types/api-types.ts`: TypeScript type definitions for all API responses.
-- `src/utils/logger.ts`: Structured logging with debug/info/error levels and correlation IDs.
-- `src/utils/apiClient.ts`: Robust API client with timeout handling, retry logic, and error sanitization.
+## 📚 Documentation
 
-## Getting Started
+- **[QUICK_REFERENCE.md](./QUICK_REFERENCE.md)** - Quick reference guide
+- **[PUBLISHING.md](./PUBLISHING.md)** - Complete deployment & ChatGPT setup guide
+- **[SECURITY.md](./SECURITY.md)** - Security features and best practices
+- **[OutSystemsAPI_Documentation.md](./src/services/OutSystemsAPI_Documentation.md)** - API integration details
+
+## 🎯 Quick Start
 
 ### Prerequisites
 
-- Node.js (v18 or higher)
-- npm
+- Node.js 18+ 
+- OutSystems Developer Cloud account
+- Cloudflare account (for Workers deployment)
+- ChatGPT Plus (for GPT integration)
 
-### Installation
+### Local Development (Stdio Mode)
 
-1.  Clone the repository:
+Perfect for testing with MCP clients like Raycast:
+
     ```bash
+# 1. Clone and install
     git clone https://github.com/joaomflcarvalho/OutSystems-mcp-server.git
     cd OutSystems-mcp-server
-    ```
-
-2.  Install the dependencies:
-    ```bash
     npm install
-    ```
 
-3.  Build the project:
-    ```bash
+# 2. Build
     npm run build
-    ```
 
-### Running the Server
+# 3. Configure environment (see Configuration section)
+cp .env.example .env
+# Edit .env with your OutSystems credentials
 
-To start the MCP server (stdio mode, for Raycast/Perplexity):
-
-```bash
+# 4. Run stdio server
 npm start
 ```
 
-This will compile the TypeScript code (if needed) and start the MCP server using stdio. The entry point is `dist/stdio-server.js`.
+### Cloudflare Workers Deployment
 
-For local HTTP API testing (optional):
+Deploy to the edge for ChatGPT integration:
 
 ```bash
-node dist/index.js
+# 1. Install dependencies
+npm install
+
+# 2. Login to Cloudflare
+npx wrangler login
+
+# 3. Set secrets (see Configuration section)
+npm run secrets:setup
+
+# 4. Test locally
+npm run dev
+# Visit http://localhost:8787/health
+
+# 5. Deploy to production
+npm run deploy:production
 ```
 
-## OutSystems Configuration
+**📖 For detailed deployment instructions, see [PUBLISHING.md](./PUBLISHING.md)**
 
-**Best practice for Raycast and similar clients:**
-Set your OutSystems credentials directly in the `env` section of your MCP server configuration.
+## ⚙️ Configuration
 
 ### Required Environment Variables
 
--   `OS_HOSTNAME`: The full URL of your OutSystems Developer Cloud (ODC) portal (e.g., `your-org-name.outsystems.dev`)
--   `OS_USERNAME`: Your ODC account email/username
--   `OS_PASSWORD`: Your ODC account password
--   `OS_DEV_ENVID`: The UUID of your Dev environment stage (see below)
+| Variable | Description | Example |
+|----------|-------------|---------|
+| `OS_HOSTNAME` | OutSystems Developer Cloud hostname | `your-org.outsystems.dev` |
+| `OS_USERNAME` | OutSystems account email | `user@example.com` |
+| `OS_PASSWORD` | OutSystems account password | `your-password` |
+| `OS_DEV_ENVID` | Development environment stage ID | `f39f6d4d-439f-...` |
+| `MCP_SERVER_SECRET` | API authentication token (Workers only) | `your-secret-token` |
 
-#### Finding your `OS_DEV_ENVID`
+### Finding Your `OS_DEV_ENVID`
 
-1.  Navigate to `https://<your-hostname>/apps` (e.g., `https://your-org-name.outsystems.dev/apps`).
-2.  Click on any application to open its details.
-3.  Look at the URL for a `stageid` parameter and copy its UUID value.
+1. Navigate to `https://<your-hostname>/apps`
+2. Click on any application
+3. Look for the `stageid` parameter in the URL
+4. Copy the UUID value
 
-Example:
-`stageid=f39f6d4d-439f-4776-b549-71e3ddd16522`
+Example: `stageid=f39f6d4d-439f-4776-b549-71e3ddd16522`
 
-## MCP Client Configuration
+### Setting Secrets for Cloudflare Workers
+
+```bash
+# Set each secret individually
+wrangler secret put OS_HOSTNAME
+wrangler secret put OS_USERNAME  
+wrangler secret put OS_PASSWORD
+wrangler secret put OS_DEV_ENVID
+
+# Generate and set a secure MCP_SERVER_SECRET
+openssl rand -base64 48 | wrangler secret put MCP_SERVER_SECRET
+```
+
+### Local Development Configuration
+
+Create a `.env` file in the project root:
+
+```bash
+OS_HOSTNAME=your-org.outsystems.dev
+OS_USERNAME=your-email@example.com
+OS_PASSWORD=your-password
+OS_DEV_ENVID=your-dev-env-uuid
+MCP_SERVER_SECRET=your-local-secret
+
+# Optional
+LOG_LEVEL=info
+DEBUG=false
+```
+
+**⚠️ Never commit `.env` to git!**
+
+## 🛠️ Available Scripts
+
+| Command | Description |
+|---------|-------------|
+| `npm install` | Install dependencies |
+| `npm run build` | Build TypeScript to dist/ |
+| `npm start` | Run stdio MCP server (local) |
+| `npm run dev` | Run Cloudflare Worker locally |
+| `npm run deploy` | Deploy to Cloudflare Workers (dev) |
+| `npm run deploy:production` | Deploy to production |
+| `npm test` | Run all tests |
+| `npm run typecheck` | Type-check without building |
+
+## 🔌 MCP Client Configuration
 
 ### Raycast
 
-Add (or update) your MCP server block in the Raycast `mcp-config.json` like this:
+Add to your `mcp-config.json`:
 
 ```json
 {
@@ -111,13 +163,13 @@ Add (or update) your MCP server block in the Raycast `mcp-config.json` like this
     "outsystems-generator": {
       "command": "node",
       "args": [
-        "/path/to/your/project/OutSystems-mcp-server/dist/stdio-server.js"
+        "/absolute/path/to/outsystems-mcp-server/dist/mcp/server-stdio.js"
       ],
       "env": {
-        "OS_HOSTNAME": "your-org-name.outsystems.dev",
+        "OS_HOSTNAME": "your-org.outsystems.dev",
         "OS_USERNAME": "your-email@example.com",
-        "OS_PASSWORD": "your-secret-password",
-        "OS_DEV_ENVID": "your-dev-envid-uuid"
+        "OS_PASSWORD": "your-password",
+        "OS_DEV_ENVID": "your-dev-env-uuid"
       },
       "autoApprove": ["createOutSystemsApp"]
     }
@@ -125,117 +177,362 @@ Add (or update) your MCP server block in the Raycast `mcp-config.json` like this
 }
 ```
 
-**Note:**
-You do NOT need to use a local `.env` file when running under Raycast; all secrets and config can be passed directly with the `env` property.
+### Claude Desktop
 
-### Example .env File (for local testing or other deployment)
+Add to `~/Library/Application Support/Claude/claude_desktop_config.json`:
 
-If you want to test locally (outside of Raycast), create a `.env` file in your project root with the following content:
-
-```bash
-OS_HOSTNAME=your-org-name.outsystems.dev
-OS_USERNAME=your-email@example.com
-OS_PASSWORD=your-secret-password
-OS_DEV_ENVID=your-dev-envid-uuid
-```
-
-Then run the server:
-
-```bash
-npm start
-```
-
-## Available Tools
-
-### 1. `createOutSystemsApp`
-Creates and deploys a complete OutSystems application from a text prompt.
-
-**Input:** 
-- `prompt` (string, 10-500 characters): Description of the application to create
-
-**Features:**
-- ✅ Input validation (10-500 characters)
-- ✅ Real-time progress streaming
-- ✅ Exponential backoff polling
-- ✅ Automatic retry on transient failures
-- ✅ User-friendly error messages
-- ✅ Correlation IDs for debugging
-
-### 2. `healthCheck`
-Verifies that the OutSystems API is accessible and authentication is working.
-
-**Use this tool to:**
-- Test your configuration before creating apps
-- Verify credentials are correct
-- Check API connectivity
-
-## New Features & Security
-
-This server includes enterprise-grade security and performance improvements:
-
-### Security Features
-- ✅ **No sensitive logging** - Environment variables never logged
-- ✅ **Input validation** - 10-500 character constraint with clear error messages
-- ✅ **Error sanitization** - User-friendly messages without API details
-- ✅ **Secure secrets management** - Comprehensive .gitignore patterns
-- ✅ **Type safety** - Fully typed with TypeScript for compile-time error checking
-
-### Performance Features
-- ✅ **Exponential backoff** - Reduces API calls by ~60% during polling
-- ✅ **Automatic retries** - Up to 3 retries for transient failures
-- ✅ **Request timeouts** - All requests have 15-30s timeouts
-- ✅ **Smart token caching** - Uses actual API expiry times
-
-### Observability Features
-- ✅ **Structured logging** - Configurable with DEBUG and LOG_LEVEL
-- ✅ **Correlation IDs** - Track requests end-to-end
-- ✅ **Health checks** - Verify setup before deploying
-
-## Optional Configuration
-
-### Logging Control
-
-Set these environment variables to control logging:
-
-```bash
-# Enable debug logging
-DEBUG=true
-
-# Set log level (silent, error, info, debug)
-LOG_LEVEL=info
-```
-
-**Example Raycast configuration with logging:**
 ```json
 {
   "mcpServers": {
-    "outsystems-generator": {
+    "outsystems": {
       "command": "node",
-      "args": ["/path/to/dist/stdio-server.js"],
+      "args": ["/path/to/dist/mcp/server-stdio.js"],
       "env": {
         "OS_HOSTNAME": "your-org.outsystems.dev",
-        "OS_USERNAME": "your-email@example.com",
+        "OS_USERNAME": "your@email.com",
         "OS_PASSWORD": "your-password",
-        "OS_DEV_ENVID": "your-uuid",
-        "LOG_LEVEL": "info",
-        "DEBUG": "false"
+        "OS_DEV_ENVID": "your-uuid"
       }
     }
   }
 }
 ```
 
-## Documentation
+## 🌐 HTTP API Endpoints
 
-- 📚 **[QUICK_REFERENCE.md](./QUICK_REFERENCE.md)** - Quick reference guide for new features
-- 🔒 **[SECURITY_FIXES_SUMMARY.md](./SECURITY_FIXES_SUMMARY.md)** - Detailed security improvements
-- 📖 **[OutSystemsAPI_Documentation.md](./src/services/OutSystemsAPI_Documentation.md)** - API integration guide
+When deployed to Cloudflare Workers:
 
-## Notes
+### Health Check
 
--   Two tools are exposed: `createOutSystemsApp` and `healthCheck`.
--   The codebase is modular and ready for additional tools or features.
--   Progress updates and final URLs are streamed to the client according to the MCP protocol.
--   All API responses are fully typed for better IDE support and compile-time error checking.
--   Production-ready with enterprise-grade security and performance.
--   You can still use a `.env` file for local testing; environment variables are loaded automatically.
+```bash
+curl https://outsystems-mcp.<subdomain>.workers.dev/health
+```
+
+Response:
+```json
+{
+  "status": "ok",
+  "timestamp": "2025-10-28T12:00:00.000Z",
+  "version": "3.0.0",
+  "uptime": 123
+}
+```
+
+### Metrics
+
+```bash
+curl https://outsystems-mcp.<subdomain>.workers.dev/metrics
+```
+
+Response:
+```json
+{
+  "requestCount": 42,
+  "uptime": 3600,
+  "version": "3.0.0",
+  "lastRequest": "2025-10-28T12:00:00.000Z"
+}
+```
+
+### MCP Invoke (Protected)
+
+```bash
+curl -X POST https://outsystems-mcp.<subdomain>.workers.dev/mcp/invoke \
+  -H "Authorization: Bearer YOUR_MCP_SERVER_SECRET" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "tool": "createOutSystemsApp",
+    "params": {
+      "prompt": "Create a simple task management app with todo lists"
+    }
+  }'
+```
+
+Response (streaming):
+```
+data: {"type":"progress","data":{"message":"🔐 Authenticating...","step":0,"total":7}}
+data: {"type":"progress","data":{"message":"🏗️ Step 1/7: Creating job...","step":1,"total":7}}
+...
+data: {"type":"result","data":{"url":"https://...","status":"completed"}}
+```
+
+## 🧪 Available Tools
+
+### 1. createOutSystemsApp
+
+Creates and deploys a complete OutSystems application from a text prompt.
+
+**Input:**
+- `prompt` (string, 10-500 characters): Description of the application
+
+**Output:**
+- Real-time progress updates (7 steps)
+- Final application URL
+- Application key
+
+**Example:**
+
+```typescript
+{
+  "tool": "createOutSystemsApp",
+  "params": {
+    "prompt": "Create a customer feedback form with email notifications"
+  }
+}
+```
+
+### 2. healthCheck
+
+Verifies OutSystems API connectivity and authentication.
+
+**Input:** None
+
+**Output:**
+- Status message
+- Connectivity confirmation
+
+**Example:**
+
+```typescript
+{
+  "tool": "healthCheck",
+  "params": {}
+}
+```
+
+## 📊 Architecture
+
+```
+outsystems-mcp-server/
+├── src/
+│   ├── mcp/                    # MCP server core
+│   │   ├── server.ts           # MCP server logic
+│   │   ├── server-stdio.ts     # Stdio entry point
+│   │   ├── handlers.ts         # Tool implementations
+│   │   └── manifest.json       # MCP metadata
+│   ├── worker/                 # Cloudflare Workers
+│   │   ├── index.ts            # Worker entry point
+│   │   ├── router.ts           # Request routing
+│   │   ├── auth.ts             # Authentication
+│   │   ├── cors.ts             # CORS handling
+│   │   └── types.ts            # Type definitions
+│   ├── services/
+│   │   ├── outsystems-api.ts   # OutSystems API client
+│   │   └── token-manager.ts    # Token caching
+│   ├── utils/
+│   │   ├── apiClient.ts        # HTTP client + retry
+│   │   ├── logger.ts           # Structured logging
+│   │   └── getOutsystemsToken.ts # Auth flow
+│   └── types/
+│       └── api-types.ts        # API type definitions
+├── test/                       # Vitest tests
+├── .github/workflows/          # CI/CD
+├── wrangler.toml               # Cloudflare config
+└── package.json
+```
+
+## 🔒 Security
+
+### Authentication
+
+- **Bearer Token** - Required for all MCP invoke endpoints
+- **CORS Protection** - Whitelist of allowed origins
+- **Input Validation** - Zod schemas for all inputs
+- **Secret Sanitization** - No secrets in logs or errors
+
+### Best Practices
+
+✅ **DO:**
+- Use `wrangler secret put` for all secrets
+- Rotate `MCP_SERVER_SECRET` every 90 days
+- Use different secrets for dev/prod
+- Enable Cloudflare analytics
+
+❌ **DON'T:**
+- Commit secrets to git
+- Share secrets in plaintext
+- Use weak or short tokens
+- Disable CORS protection
+
+**📖 For complete security details, see [SECURITY.md](./SECURITY.md)**
+
+## 🚢 Deployment
+
+### Manual Deployment
+
+```bash
+# Build and deploy to production
+npm run build
+npm run deploy:production
+```
+
+### Automatic Deployment (GitHub Actions)
+
+Push to `main` branch triggers automatic deployment:
+
+```bash
+git add .
+git commit -m "feat: add new feature"
+git push origin main
+```
+
+**Required GitHub Secrets:**
+- `CLOUDFLARE_API_TOKEN`
+- `CLOUDFLARE_ACCOUNT_ID`
+
+**📖 For complete setup, see [PUBLISHING.md](./PUBLISHING.md)**
+
+## 🧪 Testing
+
+```bash
+# Run all tests
+npm test
+
+# Run tests in watch mode
+npm run test:watch
+
+# Type check
+npm run typecheck
+```
+
+### Test Coverage
+
+- ✅ Worker routing and authentication
+- ✅ CORS preflight handling
+- ✅ Input validation
+- ✅ Error responses
+- ✅ MCP tool schemas
+
+## 📈 Monitoring
+
+### Cloudflare Dashboard
+
+1. Go to **Workers & Pages** → `outsystems-mcp`
+2. View metrics:
+   - Request count
+   - Error rate
+   - Response time
+   - CPU usage
+
+### Logs
+
+```bash
+# Tail logs in real-time
+wrangler tail
+
+# View recent logs
+wrangler tail --format pretty
+```
+
+### Setting Up Alerts
+
+1. Go to **Notifications** in Cloudflare
+2. Create alerts for:
+   - Error rate > 5%
+   - Response time > 10s
+   - Request rate spikes
+
+## 🤝 ChatGPT Integration
+
+### Create a GPT
+
+1. Go to [ChatGPT](https://chat.openai.com/) → **My GPTs**
+2. Click **Create a GPT**
+3. Configure:
+   - **Name:** OutSystems App Generator
+   - **Description:** Creates OutSystems apps from natural language
+   - **Instructions:** See [PUBLISHING.md](./PUBLISHING.md)
+4. Add Action:
+   - **Endpoint:** `https://outsystems-mcp.<subdomain>.workers.dev/mcp/invoke`
+   - **Auth:** Bearer Token
+   - **Token:** Your `MCP_SERVER_SECRET`
+5. Test and publish!
+
+**📖 For complete ChatGPT setup, see [PUBLISHING.md](./PUBLISHING.md)**
+
+## 🐛 Troubleshooting
+
+### Common Issues
+
+#### "401 Unauthorized"
+
+**Cause:** Missing or invalid `MCP_SERVER_SECRET`
+
+**Solution:**
+```bash
+# Verify secret is set
+wrangler secret list
+
+# Reset if needed
+wrangler secret put MCP_SERVER_SECRET
+```
+
+#### "503 Service Unavailable"
+
+**Cause:** OutSystems API not reachable
+
+**Solution:**
+1. Check OutSystems credentials
+2. Verify `OS_HOSTNAME` is correct
+3. Test health endpoint: `/health`
+
+#### Build Errors
+
+**Cause:** TypeScript compilation issues
+
+**Solution:**
+```bash
+# Clean and rebuild
+npm run clean
+npm install
+npm run build
+```
+
+#### CORS Errors
+
+**Cause:** Origin not in allowed list
+
+**Solution:**
+Edit `src/worker/cors.ts` and add your origin to `ALLOWED_ORIGINS`
+
+## 🛣️ Roadmap
+
+- [ ] Rate limiting with Cloudflare Workers KV
+- [ ] Webhook support for async notifications
+- [ ] Multi-app batch creation
+- [ ] Custom template support
+- [ ] Application update/deletion tools
+- [ ] Monitoring dashboard
+- [ ] CLI tool for local development
+
+## 🤝 Contributing
+
+Contributions are welcome! Please:
+
+1. Fork the repository
+2. Create a feature branch
+3. Make your changes
+4. Add tests
+5. Submit a pull request
+
+## 📄 License
+
+[ISC License](./LICENSE)
+
+## 🙏 Acknowledgments
+
+- [Model Context Protocol](https://platform.openai.com/docs/mcp) by OpenAI
+- [Cloudflare Workers](https://workers.cloudflare.com/)
+- [OutSystems Developer Cloud](https://www.outsystems.com/)
+
+## 📞 Support
+
+- **Issues:** [GitHub Issues](https://github.com/joaomflcarvalho/OutSystems-mcp-server/issues)
+- **Discussions:** [GitHub Discussions](https://github.com/joaomflcarvalho/OutSystems-mcp-server/discussions)
+- **Email:** security@example.com (replace with your email)
+
+---
+
+**Made with ❤️ for the OutSystems and AI communities**
+
+[![Deploy to Cloudflare Workers](https://deploy.workers.cloudflare.com/button)](https://deploy.workers.cloudflare.com/?url=https://github.com/joaomflcarvalho/OutSystems-mcp-server)

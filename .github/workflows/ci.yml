@@ -1,0 +1,48 @@
+name: CI
+
+on:
+  pull_request:
+    branches: [main, develop]
+  push:
+    branches: [main, develop]
+
+jobs:
+  lint-and-test:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+      
+      - name: Install dependencies
+        run: npm ci
+      
+      - name: Type check
+        run: npm run typecheck
+      
+      - name: Run tests
+        run: npm test
+        env:
+          # Test environment variables (non-sensitive)
+          OS_HOSTNAME: test.outsystems.dev
+          OS_USERNAME: test@example.com
+          OS_PASSWORD: test-password
+          OS_DEV_ENVID: 00000000-0000-0000-0000-000000000000
+          MCP_SERVER_SECRET: test-secret
+      
+      - name: Build
+        run: npm run build
+      
+      - name: Upload build artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: dist
+          path: dist/
+          retention-days: 7
+

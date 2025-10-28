@@ -7,9 +7,11 @@ import axios from "axios";
 import { CookieJar } from "tough-cookie";
 // @ts-ignore - no type definitions available
 import pkceChallenge from "pkce-challenge";
-import { URLSearchParams, URL } from "url";
-import { TokenResponse } from "../types/api-types";
-import { logger } from "./logger";
+import { TokenResponse } from "../types/api-types.js";
+import { logger } from "./logger.js";
+
+// Use Web APIs (URLSearchParams and URL are globally available)
+// No need to import from 'url' module
 
 const { OS_HOSTNAME, OS_USERNAME, OS_PASSWORD, OS_DEV_ENVID } = process.env;
 

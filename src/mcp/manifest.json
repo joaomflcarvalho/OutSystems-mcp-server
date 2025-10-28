@@ -1,0 +1,66 @@
+{
+  "name": "OutSystems Generator MCP Server",
+  "description": "MCP server providing tools to create and deploy OutSystems applications from natural language prompts. Supports real-time streaming progress updates and production-ready deployment on Cloudflare Workers.",
+  "version": "3.0.0",
+  "tools": [
+    {
+      "name": "createOutSystemsApp",
+      "description": "Creates and deploys a complete OutSystems application from a text prompt. The prompt should describe the desired application in 10-500 characters.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "prompt": {
+            "type": "string",
+            "description": "A detailed description of the application to create. Must be between 10-500 characters.",
+            "minLength": 10,
+            "maxLength": 500
+          }
+        },
+        "required": ["prompt"]
+      },
+      "outputSchema": {
+        "type": "object",
+        "properties": {
+          "url": {
+            "type": "string",
+            "description": "The URL where the deployed application can be accessed"
+          },
+          "applicationKey": {
+            "type": "string",
+            "description": "The unique identifier for the created application"
+          },
+          "status": {
+            "type": "string",
+            "description": "Final deployment status"
+          }
+        }
+      }
+    },
+    {
+      "name": "healthCheck",
+      "description": "Checks if the OutSystems API is accessible and authentication is working properly",
+      "inputSchema": {
+        "type": "object",
+        "properties": {}
+      },
+      "outputSchema": {
+        "type": "object",
+        "properties": {
+          "status": {
+            "type": "string",
+            "description": "Health check status (ok or error)"
+          },
+          "message": {
+            "type": "string",
+            "description": "Detailed status message"
+          }
+        }
+      }
+    }
+  ],
+  "author": "João Carvalho",
+  "contact": "joao@example.com",
+  "license": "ISC",
+  "repository": "https://github.com/joaomflcarvalho/OutSystems-mcp-server"
+}
+

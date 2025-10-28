@@ -1,4 +1,9 @@
-import { getValidOutSystemsToken } from './token-manager.js';
+/**
+ * Cloudflare Workers-compatible OutSystems API client
+ * This version accepts environment bindings as parameters
+ */
+
+import { getValidOutSystemsToken } from './token-manager.worker.js';
 import { 
   JobStatus, 
   JobCreationResponse, 
@@ -13,6 +18,7 @@ import {
   sanitizeErrorMessage 
 } from '../utils/apiClient.js';
 import { createLogger } from '../utils/logger.js';
+import { Env } from '../worker/types.js';
 
 // Use Web Crypto API for UUID generation (works in both Node and Workers)
 function generateUUID(): string {
@@ -26,9 +32,6 @@ function generateUUID(): string {
     return v.toString(16);
   });
 }
-
-// --- Configuration ---
-const OS_HOSTNAME = process.env.OS_HOSTNAME;
 
 // --- API Helper Functions with Proper Types and Error Handling ---
 
@@ -148,20 +151,20 @@ async function getApplicationDetails(
   );
 }
 
-// --- Main Orchestration Generator with Exponential Backoff and Correlation IDs ---
-export async function* createAndDeployApp(prompt: string): AsyncGenerator<string> {
+// --- Main Orchestration Generator for Cloudflare Workers ---
+export async function* createAndDeployApp(prompt: string, env: Env): AsyncGenerator<string> {
   // Generate correlation ID for tracking this request
   const correlationId = generateUUID().split('-')[0];
   const logger = createLogger(correlationId);
 
-  if (!OS_HOSTNAME) {
+  if (!env.OS_HOSTNAME) {
     const error = "Missing required environment variable: OS_HOSTNAME";
     logger.error(error);
     yield sanitizeErrorMessage(new Error(error));
     throw new Error(error);
   }
 
-  const client = new OutSystemsApiClient(OS_HOSTNAME);
+  const client = new OutSystemsApiClient(env.OS_HOSTNAME);
 
   try {
     logger.info('Starting app creation', { 
@@ -170,7 +173,7 @@ export async function* createAndDeployApp(prompt: string): AsyncGenerator<string
     });
 
     yield "🔐 Authenticating with OutSystems...";
-    const token = await getValidOutSystemsToken();
+    const token = await getValidOutSystemsToken(env);
     logger.debug('Token acquired successfully');
     
     // --- App Generation Phase ---
@@ -253,7 +256,7 @@ export async function* createAndDeployApp(prompt: string): AsyncGenerator<string
       throw new Error("Could not retrieve final application URL.");
     }
 
-    const appHostname = OS_HOSTNAME.replace('.outsystems.dev', '-dev.outsystems.app');
+    const appHostname = env.OS_HOSTNAME.replace('.outsystems.dev', '-dev.outsystems.app');
     const finalUrl = `https://${appHostname}/${appDetails.urlPath}`;
     
     logger.info('App creation completed successfully', { 
@@ -275,3 +278,4 @@ export async function* createAndDeployApp(prompt: string): AsyncGenerator<string
     throw new Error(sanitizedMessage);
   }
 }
+

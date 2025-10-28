@@ -1,48 +1,59 @@
 {
   "name": "outsystems-mcp-server",
-  "version": "2.0.0",
-  "description": "MCP server for generating OutSystems apps",
-  "main": "index.js",
+  "version": "3.0.0",
+  "description": "Production-ready MCP server for generating OutSystems apps, deployable on Cloudflare Workers",
+  "type": "module",
+  "main": "dist/stdio-server.js",
   "scripts": {
     "clean": "rm -rf dist",
     "build": "npm run clean && tsc",
-    "start": "node dist/stdio-server.js"
+    "build:worker": "npm run build",
+    "start": "node dist/mcp/server-stdio.js",
+    "dev": "wrangler dev",
+    "deploy": "wrangler deploy",
+    "deploy:production": "wrangler deploy --env production",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "typecheck": "tsc --noEmit",
+    "lint": "eslint src --ext .ts",
+    "format": "prettier --write \"src/**/*.ts\"",
+    "secrets:setup": "echo 'Run: wrangler secret put OS_HOSTNAME && wrangler secret put OS_USERNAME && wrangler secret put OS_PASSWORD && wrangler secret put OS_DEV_ENVID && wrangler secret put MCP_SERVER_SECRET'"
   },
   "keywords": [
     "mcp",
     "outsystems",
-    "ai"
+    "ai",
+    "cloudflare",
+    "workers",
+    "chatgpt",
+    "openai"
   ],
-  "author": "",
+  "author": "João Carvalho",
   "license": "ISC",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/joaomflcarvalho/OutSystems-mcp-server.git"
+  },
   "devDependencies": {
-    "@types/cors": "^2.8.19",
-    "@types/express": "^4.17.21",
-    "@types/jest": "^30.0.0",
+    "@cloudflare/workers-types": "^4.20241127.0",
     "@types/node": "^24.1.0",
-    "@types/supertest": "^6.0.3",
-    "@types/tough-cookie": "^4.0.5",
-    "axios": "^1.11.0",
-    "jest": "^29.7.0",
-    "supertest": "^7.1.4",
+    "@typescript-eslint/eslint-plugin": "^8.18.2",
+    "@typescript-eslint/parser": "^8.18.2",
+    "eslint": "^9.17.0",
+    "prettier": "^3.4.2",
     "ts-node": "^10.9.2",
-    "typescript": "^5.8.3"
+    "typescript": "^5.8.3",
+    "vitest": "^2.1.8",
+    "wrangler": "^4.45.1"
   },
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.16.0",
-    "@types/dotenv": "^6.1.1",
-    "@types/uuid": "^10.0.0",
     "amazon-cognito-identity-js": "^6.3.15",
+    "axios": "^1.11.0",
     "axios-cookiejar-support": "^6.0.4",
-    "body-parser": "^2.2.0",
-    "cors": "^2.8.5",
     "dotenv": "^17.2.1",
-    "express": "^4.19.2",
     "pkce-challenge": "^5.0.0",
     "tough-cookie": "^5.1.2",
-    "uuid": "^11.1.0",
-    "vscode-jsonrpc": "^8.2.1",
-    "zod": "^3.25.76",
-    "zod-to-json-schema": "^3.24.6"
+    "zod": "^3.25.76"
   }
 }
