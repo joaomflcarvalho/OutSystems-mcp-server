@@ -8,7 +8,11 @@ import dotenv from "dotenv";
 import { logger } from "./utils/logger";
 
 // Load environment variables silently (MCP requires clean stdout)
+// Suppress dotenv's stdout output by temporarily redirecting it
+const originalStdoutWrite = process.stdout.write.bind(process.stdout);
+process.stdout.write = (() => true) as any;
 dotenv.config({ debug: false });
+process.stdout.write = originalStdoutWrite;
 
 // Input validation with proper constraints
 export const inputSchemaShape = {
