@@ -9,11 +9,10 @@ import { CookieJar } from "tough-cookie";
 import pkceChallenge from "pkce-challenge";
 import { TokenResponse } from "../types/api-types.js";
 import { logger } from "./logger.js";
+import { getConfig } from "./runtime-config.js";
 
 // Use Web APIs (URLSearchParams and URL are globally available)
 // No need to import from 'url' module
-
-const { OS_HOSTNAME, OS_USERNAME, OS_PASSWORD, OS_DEV_ENVID } = process.env;
 
 /**
  * Performs the Cognito SRP login to get Cognito-specific tokens.
@@ -55,6 +54,14 @@ async function cognitoLogin(
  */
 export const getOutsystemsToken = async (): Promise<TokenResponse> => {
   try {
+    // Get configuration from runtime config or environment variables
+    const config = getConfig();
+    if (!config) {
+      throw new Error("OutSystems configuration not found. Please configure your environment using the configureOutSystemsEnvironment tool or set environment variables.");
+    }
+
+    const { hostname, username, password } = config;
+
     // @ts-ignore - no type definitions available
     const { wrapper: axiosCookieJarSupport } = await import('axios-cookiejar-support');
 
@@ -66,13 +73,13 @@ export const getOutsystemsToken = async (): Promise<TokenResponse> => {
     (session.defaults as any).jar = jar;
 
     // 1. Get the OIDC configuration to find the authorization and token endpoints
-    const oidcConfigUrl = `https://${OS_HOSTNAME}/identity/.well-known/openid-configuration`;
+    const oidcConfigUrl = `https://${hostname}/identity/.well-known/openid-configuration`;
     const oidcConfigResponse = await session.get(oidcConfigUrl);
     const { authorization_endpoint, token_endpoint } = oidcConfigResponse.data;
 
     // 2. Generate the PKCE codes needed for the auth flow
     const { code_verifier, code_challenge } = await pkceChallenge();
-    const redirect_url = `https://${OS_HOSTNAME}/authentication/redirect`;
+    const redirect_url = `https://${hostname}/authentication/redirect`;
 
     // 3. Start the authorization flow to get state and other parameters
     const authPageParams = new URLSearchParams({
@@ -99,13 +106,10 @@ export const getOutsystemsToken = async (): Promise<TokenResponse> => {
     }
 
     // 4. Perform the separate Cognito SRP login
-    if (!OS_USERNAME || !OS_PASSWORD || !OS_HOSTNAME) {
-      throw new Error("Missing required environment variables.");
-    }
     const cognitoResult = await cognitoLogin(
-      OS_USERNAME,
-      OS_PASSWORD,
-      OS_HOSTNAME
+      username,
+      password,
+      hostname
     );
     const cognitoTokens = {
       IdToken: cognitoResult.getIdToken().getJwtToken(),
@@ -114,7 +118,7 @@ export const getOutsystemsToken = async (): Promise<TokenResponse> => {
     };
 
     // 5. Exchange Cognito tokens for an intermediate OutSystems auth code
-    const storeTokenUrl = `https://${OS_HOSTNAME}/identityapi/v1alpha1/oidc/store-token`;
+    const storeTokenUrl = `https://${hostname}/identityapi/v1alpha1/oidc/store-token`;
     const storeTokenResponse = await session.post(storeTokenUrl, {
       ClientId: clientPoolId,
       ...cognitoTokens,

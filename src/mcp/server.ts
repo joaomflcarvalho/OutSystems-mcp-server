@@ -9,6 +9,7 @@ import { createAndDeployApp } from "../services/outsystems-api.js";
 import { getValidOutSystemsToken } from "../services/token-manager.js";
 import { z } from "zod";
 import { logger } from "../utils/logger.js";
+import { setRuntimeConfig, hasConfig, clearRuntimeConfig } from "../utils/runtime-config.js";
 
 // Input validation schema
 export const inputSchemaShape = {
@@ -31,6 +32,93 @@ export function createMcpServer(): McpServer {
     instructions: "Creates and deploys OutSystems applications from prompts.",
     displayName: "OutSystems App Generator"
   });
+
+  // Configuration tool - allows setting credentials at runtime
+  server.tool(
+    "configureOutSystemsEnvironment",
+    "Configure OutSystems environment credentials for the current session. Use this if environment variables are not set. The agent will guide you through finding each credential.",
+    {
+      hostname: z
+        .string()
+        .min(1)
+        .describe("OutSystems Developer Cloud hostname (e.g., your-org.outsystems.dev). Find this in your OutSystems portal URL."),
+      username: z
+        .string()
+        .email()
+        .describe("Your OutSystems account email address. This is the email you use to log into OutSystems."),
+      password: z
+        .string()
+        .min(1)
+        .describe("Your OutSystems account password. This is the password you use to log into OutSystems."),
+      devEnvId: z
+        .string()
+        .uuid()
+        .describe("Development environment stage ID (UUID format). To find this: 1) Go to https://<your-hostname>/apps, 2) Click any application, 3) Look for 'stageid' parameter in the URL, 4) Copy the UUID value (e.g., f39f6d4d-439f-4776-b549-71e3ddd16522).")
+    },
+    async ({ hostname, username, password, devEnvId }) => {
+      try {
+        logger.info('Configuring OutSystems environment');
+        
+        // Set runtime configuration
+        setRuntimeConfig({
+          hostname,
+          username,
+          password,
+          devEnvId
+        });
+        
+        logger.info('Configuration set successfully');
+        
+        return {
+          content: [{ 
+            type: "text", 
+            text: `✅ OutSystems environment configured successfully!\n\n` +
+                  `📍 Hostname: ${hostname}\n` +
+                  `👤 Username: ${username}\n` +
+                  `🔧 Environment ID: ${devEnvId}\n\n` +
+                  `You can now use the createOutSystemsApp tool to generate applications.`
+          }]
+        };
+      } catch (error: any) {
+        logger.error('Failed to configure environment', error);
+        return {
+          content: [{ 
+            type: "text", 
+            text: `❌ Failed to configure environment: ${error.message}` 
+          }]
+        };
+      }
+    }
+  );
+
+  // Clear configuration tool - allows clearing runtime credentials
+  server.tool(
+    "clearOutSystemsConfiguration",
+    "Clear the runtime OutSystems configuration. This does not affect environment variables.",
+    {},
+    async () => {
+      try {
+        logger.info('Clearing OutSystems configuration');
+        clearRuntimeConfig();
+        logger.info('Configuration cleared successfully');
+        
+        return {
+          content: [{ 
+            type: "text", 
+            text: "✅ OutSystems runtime configuration cleared. Environment variables (if set) will be used for the next operation."
+          }]
+        };
+      } catch (error: any) {
+        logger.error('Failed to clear configuration', error);
+        return {
+          content: [{ 
+            type: "text", 
+            text: `❌ Failed to clear configuration: ${error.message}` 
+          }]
+        };
+      }
+    }
+  );
 
   // Health check tool
   server.tool(
@@ -63,9 +151,32 @@ export function createMcpServer(): McpServer {
   // Main tool: Create and deploy OutSystems application
   server.tool(
     "createOutSystemsApp",
-    "Creates and deploys a complete OutSystems application from a text prompt. The prompt should describe the desired application in 10-500 characters.",
+    "Creates and deploys a complete OutSystems application from a text prompt. The prompt should describe the desired application in 10-500 characters. Note: If environment variables are not configured, you must first call configureOutSystemsEnvironment to set up your credentials.",
     inputSchemaShape,
     async ({ prompt }, extra: any) => {
+      // Check if configuration is available
+      if (!hasConfig()) {
+        logger.info('Attempted to create app without configuration');
+        return {
+          content: [{
+            type: "text",
+            text: "⚠️ OutSystems environment is not configured.\n\n" +
+                  "Please use the `configureOutSystemsEnvironment` tool to set up your credentials first.\n\n" +
+                  "You'll need to provide:\n" +
+                  "1. **Hostname**: Your OutSystems Developer Cloud hostname (e.g., your-org.outsystems.dev)\n" +
+                  "2. **Username**: Your OutSystems account email\n" +
+                  "3. **Password**: Your OutSystems account password\n" +
+                  "4. **Environment ID**: Your development environment stage ID (UUID)\n\n" +
+                  "To find your Environment ID:\n" +
+                  "   • Go to https://<your-hostname>/apps\n" +
+                  "   • Click on any application\n" +
+                  "   • Look for the 'stageid' parameter in the URL\n" +
+                  "   • Copy the UUID value\n\n" +
+                  "Alternatively, you can set these as environment variables in your MCP client configuration."
+          }]
+        };
+      }
+
       let lastUrl: string | null = null;
       let lastText: string | null = null;
       

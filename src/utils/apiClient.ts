@@ -135,7 +135,7 @@ export async function pollWithBackoff<T>(
     maxAttempts?: number;
     initialInterval?: number;
     maxInterval?: number;
-    onProgress?: (result: T, attempt: number) => void;
+    onProgress?: (result: T, attempt: number) => void | Promise<void>;
   } = {}
 ): Promise<T> {
   const {
@@ -152,7 +152,7 @@ export async function pollWithBackoff<T>(
     const result = await pollFn();
 
     if (onProgress) {
-      onProgress(result, attempts);
+      await onProgress(result, attempts);
     }
 
     if (checkFn(result)) {
