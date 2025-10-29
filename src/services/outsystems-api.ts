@@ -148,49 +148,6 @@ async function getApplicationDetails(
   );
 }
 
-/**
- * Polling helper that yields progress updates within a generator
- */
-async function* pollWithYield<T>(
-  pollFn: () => Promise<T>,
-  checkFn: (result: T) => boolean,
-  failFn: (result: T) => boolean,
-  options: {
-    maxAttempts: number;
-    initialInterval: number;
-    maxInterval: number;
-    progressMessage: (attempt: number, maxAttempts: number) => string;
-  }
-): AsyncGenerator<string, T, unknown> {
-  const { maxAttempts, initialInterval, maxInterval, progressMessage } = options;
-  
-  let interval = initialInterval;
-  let attempts = 0;
-
-  while (attempts < maxAttempts) {
-    const result = await pollFn();
-
-    if (checkFn(result)) {
-      return result;
-    }
-
-    if (failFn(result)) {
-      throw new Error(`Polling failed with result: ${JSON.stringify(result)}`);
-    }
-
-    // Yield progress every 5 attempts to avoid spamming
-    if (attempts === 0 || (attempts + 1) % 5 === 0) {
-      yield progressMessage(attempts + 1, maxAttempts);
-    }
-
-    await new Promise(resolve => setTimeout(resolve, interval));
-    interval = Math.min(interval * 1.5, maxInterval);
-    attempts++;
-  }
-
-  throw new Error(`Polling timeout after ${attempts} attempts`);
-}
-
 // --- Main Orchestration Generator with Exponential Backoff and Correlation IDs ---
 export async function* createAndDeployApp(prompt: string): AsyncGenerator<string> {
   // Generate correlation ID for tracking this request
@@ -223,7 +180,7 @@ export async function* createAndDeployApp(prompt: string): AsyncGenerator<string
     logger.info('Job created', { jobId });
 
     yield "⏳ Step 2/7: Waiting for job to be ready...";
-    const jobPoller = pollWithYield<JobStatus>(
+    const readyJobStatus = await pollWithBackoff<JobStatus>(
       () => getJobStatus(client, token, jobId),
       (status) => status.status === 'ReadyToGenerate',
       (status) => status.status === 'Failed',
@@ -231,19 +188,11 @@ export async function* createAndDeployApp(prompt: string): AsyncGenerator<string
         maxAttempts: 60,
         initialInterval: 2000,
         maxInterval: 10000,
-        progressMessage: (attempt, max) => `   ⏳ Checking job status (attempt ${attempt}/${max})...`
+        onProgress: (status, attempt) => {
+          logger.debug('Polling job status', { status: status.status, attempt });
+        }
       }
     );
-    
-    let readyJobStatus: JobStatus;
-    // Manually iterate to get both yielded values and the return value
-    let jobIterResult = await jobPoller.next();
-    while (!jobIterResult.done) {
-      yield jobIterResult.value; // yield the progress message
-      jobIterResult = await jobPoller.next();
-    }
-    readyJobStatus = jobIterResult.value; // get the final return value
-    
     yield `✓ Job is ready to generate (Status: ${readyJobStatus.status})`;
     logger.info('Job ready for generation', { status: readyJobStatus.status });
 
@@ -253,7 +202,7 @@ export async function* createAndDeployApp(prompt: string): AsyncGenerator<string
     logger.info('Generation triggered');
     
     yield "🔄 Step 4/7: Waiting for generation to complete...";
-    const generationPoller = pollWithYield<JobStatus>(
+    const completedJobStatus = await pollWithBackoff<JobStatus>(
       () => getJobStatus(client, token, jobId),
       (status) => status.status === 'Done',
       (status) => status.status === 'Failed',
@@ -261,17 +210,11 @@ export async function* createAndDeployApp(prompt: string): AsyncGenerator<string
         maxAttempts: 120, // Generation can take longer
         initialInterval: 3000,
         maxInterval: 30000,
-        progressMessage: (attempt, max) => `   🔄 Generating application (attempt ${attempt}/${max})...`
+        onProgress: (status, attempt) => {
+          logger.debug('Polling generation status', { status: status.status, attempt });
+        }
       }
     );
-    
-    let completedJobStatus: JobStatus;
-    let genIterResult = await generationPoller.next();
-    while (!genIterResult.done) {
-      yield genIterResult.value;
-      genIterResult = await generationPoller.next();
-    }
-    completedJobStatus = genIterResult.value;
 
     const applicationKey = completedJobStatus.appSpec?.appKey;
     if (!applicationKey) {
@@ -287,7 +230,7 @@ export async function* createAndDeployApp(prompt: string): AsyncGenerator<string
     logger.info('Publication started', { publicationKey });
 
     yield "📦 Step 6/7: Waiting for deployment to complete...";
-    const publicationPoller = pollWithYield<PublicationStatus>(
+    const completedPubStatus = await pollWithBackoff<PublicationStatus>(
       () => getPublicationStatus(client, token, publicationKey),
       (status) => status.status === 'Finished',
       (status) => status.status === 'Failed',
@@ -295,18 +238,11 @@ export async function* createAndDeployApp(prompt: string): AsyncGenerator<string
         maxAttempts: 120,
         initialInterval: 3000,
         maxInterval: 30000,
-        progressMessage: (attempt, max) => `   📦 Deploying application (attempt ${attempt}/${max})...`
+        onProgress: (status, attempt) => {
+          logger.debug('Polling publication status', { status: status.status, attempt });
+        }
       }
     );
-    
-    let completedPubStatus: PublicationStatus;
-    let pubIterResult = await publicationPoller.next();
-    while (!pubIterResult.done) {
-      yield pubIterResult.value;
-      pubIterResult = await publicationPoller.next();
-    }
-    completedPubStatus = pubIterResult.value;
-    
     yield `✓ Deployment completed (Status: ${completedPubStatus.status})`;
     logger.info('Publication completed', { status: completedPubStatus.status });
 
