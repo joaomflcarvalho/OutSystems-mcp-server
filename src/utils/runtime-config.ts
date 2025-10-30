@@ -8,7 +8,7 @@ export interface OutSystemsConfig {
   username: string;
   password: string;
   devEnvId: string;
-}
+} 
 
 // In-memory runtime configuration
 let runtimeConfig: OutSystemsConfig | null = null;

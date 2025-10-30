@@ -22,7 +22,6 @@ config/initialize.json
 config/*.json
 !config/*.example
 !config/*.json.example
-src/config.ts
 src/config copy.ts
 
 # Test files with sensitive data
