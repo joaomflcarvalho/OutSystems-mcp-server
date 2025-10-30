@@ -2,7 +2,7 @@
  * Authentication middleware for Cloudflare Workers
  */
 
-import { Env } from './types';
+import { Env } from './types.js';
 
 /**
  * Validates Bearer token from Authorization header

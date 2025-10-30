@@ -1,11 +1,11 @@
 // stdio-server.ts
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
-import { createAndDeployApp } from "./services/outsystems-api";
-import { getValidOutSystemsToken } from "./services/token-manager";
+import { createAndDeployApp } from "./services/outsystems-api.js";
+import { getValidOutSystemsToken } from "./services/token-manager.js";
 import { z } from "zod";
 import dotenv from "dotenv";
-import { logger } from "./utils/logger";
+import { logger } from "./utils/logger.js";
 
 // Load environment variables silently (MCP requires clean stdout)
 // Suppress dotenv's stdout output by temporarily redirecting it
