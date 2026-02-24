@@ -1,0 +1,130 @@
+{
+  "name": "OutSystems Generator MCP Server",
+  "description": "MCP server providing tools to create and deploy OutSystems applications from natural language prompts. Supports real-time streaming progress updates and production-ready deployment on Cloudflare Workers.",
+  "version": "3.0.0",
+  "tools": [
+    {
+      "name": "configureOutSystemsEnvironment",
+      "description": "Configure OutSystems environment credentials for the current session. Use this if environment variables are not set. The agent will guide you through finding each credential.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "hostname": {
+            "type": "string",
+            "description": "OutSystems Developer Cloud hostname (e.g., your-org.outsystems.dev). Find this in your OutSystems portal URL.",
+            "minLength": 1
+          },
+          "username": {
+            "type": "string",
+            "format": "email",
+            "description": "Your OutSystems account email address. This is the email you use to log into OutSystems."
+          },
+          "password": {
+            "type": "string",
+            "description": "Your OutSystems account password. This is the password you use to log into OutSystems.",
+            "minLength": 1
+          },
+          "devEnvId": {
+            "type": "string",
+            "format": "uuid",
+            "description": "Development environment stage ID (UUID format). To find this: 1) Go to https://<your-hostname>/apps, 2) Click any application, 3) Look for 'stageid' parameter in the URL, 4) Copy the UUID value."
+          }
+        },
+        "required": ["hostname", "username", "password", "devEnvId"]
+      },
+      "outputSchema": {
+        "type": "object",
+        "properties": {
+          "success": {
+            "type": "boolean",
+            "description": "Whether configuration was successful"
+          },
+          "message": {
+            "type": "string",
+            "description": "Status message"
+          }
+        }
+      }
+    },
+    {
+      "name": "clearOutSystemsConfiguration",
+      "description": "Clear the runtime OutSystems configuration. This does not affect environment variables.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {}
+      },
+      "outputSchema": {
+        "type": "object",
+        "properties": {
+          "success": {
+            "type": "boolean",
+            "description": "Whether clearing was successful"
+          },
+          "message": {
+            "type": "string",
+            "description": "Status message"
+          }
+        }
+      }
+    },
+    {
+      "name": "createOutSystemsApp",
+      "description": "Creates and deploys a complete OutSystems application from a text prompt. The prompt should describe the desired application in 10-500 characters. Note: If environment variables are not configured, you must first call configureOutSystemsEnvironment to set up your credentials.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "prompt": {
+            "type": "string",
+            "description": "A detailed description of the application to create. Must be between 10-500 characters.",
+            "minLength": 10,
+            "maxLength": 500
+          }
+        },
+        "required": ["prompt"]
+      },
+      "outputSchema": {
+        "type": "object",
+        "properties": {
+          "url": {
+            "type": "string",
+            "description": "The URL where the deployed application can be accessed"
+          },
+          "applicationKey": {
+            "type": "string",
+            "description": "The unique identifier for the created application"
+          },
+          "status": {
+            "type": "string",
+            "description": "Final deployment status"
+          }
+        }
+      }
+    },
+    {
+      "name": "healthCheck",
+      "description": "Checks if the OutSystems API is accessible and authentication is working properly",
+      "inputSchema": {
+        "type": "object",
+        "properties": {}
+      },
+      "outputSchema": {
+        "type": "object",
+        "properties": {
+          "status": {
+            "type": "string",
+            "description": "Health check status (ok or error)"
+          },
+          "message": {
+            "type": "string",
+            "description": "Detailed status message"
+          }
+        }
+      }
+    }
+  ],
+  "author": "João Carvalho",
+  "contact": "joaomfcarvalho@gmail.com",
+  "license": "ISC",
+  "repository": "https://github.com/joaomflcarvalho/OutSystems-mcp-server"
+}
+

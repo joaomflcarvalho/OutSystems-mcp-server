@@ -1,0 +1,53 @@
+# Cloudflare Workers Configuration for OutSystems MCP Server
+name = "outsystems-mcp"
+main = "src/worker/index.ts"
+compatibility_date = "2025-01-01"
+
+# Workers configuration
+workers_dev = true
+usage_model = "bundled"
+minify = true
+
+# Build configuration
+[build]
+command = "npm run build"
+
+# Development configuration
+[env.development]
+name = "outsystems-mcp-dev"
+
+# Production configuration  
+[env.production]
+name = "outsystems-mcp"
+routes = [
+  # Add your custom routes here if needed
+  # { pattern = "mcp.example.com/*", custom_domain = true }
+]
+
+# Environment variables (non-sensitive, for reference only)
+# Set sensitive values using: wrangler secret put <KEY>
+[vars]
+# LOG_LEVEL = "info"
+# DEBUG = "false"
+
+# Secrets (set via wrangler CLI):
+# wrangler secret put OS_HOSTNAME
+# wrangler secret put OS_USERNAME  
+# wrangler secret put OS_PASSWORD
+# wrangler secret put OS_DEV_ENVID
+# wrangler secret put MCP_SERVER_SECRET
+
+# Compatibility flags
+compatibility_flags = ["nodejs_compat"]
+node_compat = true
+
+# Durable Objects (not used currently, but available for future state management)
+# [[durable_objects.bindings]]
+# name = "MCP_STATE"
+# class_name = "McpState"
+
+# KV Namespaces (not used currently, but available for caching)
+# [[kv_namespaces]]
+# binding = "MCP_CACHE"
+# id = "your-kv-namespace-id"
+
