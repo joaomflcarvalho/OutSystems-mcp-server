@@ -205,10 +205,14 @@ export async function* createAndDeployApp(prompt: string, env: Env): AsyncGenera
     logger.info('Generation triggered');
     
     yield "🔄 Step 4/7: Waiting for generation to complete...";
+    let failedGenerationStatus: JobStatus | null = null;
     const completedJobStatus = await pollWithBackoff<JobStatus>(
       () => getJobStatus(client, token, jobId),
       (status) => status.status === 'Done',
-      (status) => status.status === 'Failed',
+      (status) => {
+        if (status.status === 'Failed') { failedGenerationStatus = status; return true; }
+        return false;
+      },
       {
         maxAttempts: 120, // Generation can take longer
         initialInterval: 3000,
@@ -217,7 +221,10 @@ export async function* createAndDeployApp(prompt: string, env: Env): AsyncGenera
           logger.debug('Polling generation status', { status: status.status, attempt });
         }
       }
-    );
+    ).catch(() => {
+      const msg = (failedGenerationStatus as any)?.error?.message;
+      throw new Error(msg ?? 'App generation failed.');
+    });
 
     const applicationKey = completedJobStatus.appSpec?.appKey;
     if (!applicationKey) {
@@ -233,10 +240,14 @@ export async function* createAndDeployApp(prompt: string, env: Env): AsyncGenera
     logger.info('Publication started', { publicationKey });
 
     yield "📦 Step 6/7: Waiting for deployment to complete...";
+    let failedPubStatus: PublicationStatus | null = null;
     const completedPubStatus = await pollWithBackoff<PublicationStatus>(
       () => getPublicationStatus(client, token, publicationKey),
       (status) => status.status === 'Finished',
-      (status) => status.status === 'Failed',
+      (status) => {
+        if (status.status === 'Failed') { failedPubStatus = status; return true; }
+        return false;
+      },
       {
         maxAttempts: 120,
         initialInterval: 3000,
@@ -245,7 +256,10 @@ export async function* createAndDeployApp(prompt: string, env: Env): AsyncGenera
           logger.debug('Polling publication status', { status: status.status, attempt });
         }
       }
-    );
+    ).catch(() => {
+      const msg = (failedPubStatus as any)?.error?.message;
+      throw new Error(msg ?? 'App deployment failed.');
+    });
     yield `✓ Deployment completed (Status: ${completedPubStatus.status})`;
     logger.info('Publication completed', { status: completedPubStatus.status });
 
@@ -268,14 +282,11 @@ export async function* createAndDeployApp(prompt: string, env: Env): AsyncGenera
     yield `🎉 Your app is ready! Access it at: ${finalUrl}`;
 
   } catch (error: any) {
-    const sanitizedMessage = sanitizeErrorMessage(error);
     logger.error('App creation failed', error, { correlationId });
-    
-    // Yield user-friendly error message
-    yield `❌ ${sanitizedMessage}`;
-    
-    // Re-throw with sanitized message
-    throw new Error(sanitizedMessage);
+    // Surface the specific error message (auth failures, API errors, OutSystems generation errors)
+    const msg = error.message ?? 'An unexpected error occurred. Please try again.';
+    yield `❌ ${msg}`;
+    throw new Error(msg);
   }
 }
 

@@ -41,6 +41,10 @@ routes = [
 compatibility_flags = ["nodejs_compat"]
 node_compat = true
 
+# Polyfill `global` for npm packages (e.g. amazon-cognito-identity-js) that expect Node.js globals
+[define]
+global = "globalThis"
+
 # Durable Objects (not used currently, but available for future state management)
 # [[durable_objects.bindings]]
 # name = "MCP_STATE"

@@ -8,6 +8,9 @@ export interface Env {
   OS_PASSWORD: string;
   OS_DEV_ENVID: string;
   
+  // Cognito refresh token (bootstrapped once via scripts/bootstrap-token.ts)
+  COGNITO_REFRESH_TOKEN: string;
+
   // MCP Server Security
   MCP_SERVER_SECRET: string;
   

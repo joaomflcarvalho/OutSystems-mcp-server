@@ -23,16 +23,9 @@ export const inputSchemaShape = {
 export const inputSchema = z.object(inputSchemaShape);
 
 /**
- * Initialize and configure the MCP server
+ * Register all MCP tools on a server instance (stdio mode, uses process.env / runtime config)
  */
-export function createMcpServer(): McpServer {
-  const server = new McpServer({
-    name: "outsystems-app-generator",
-    version: "3.0.0",
-    instructions: "Creates and deploys OutSystems applications from prompts.",
-    displayName: "OutSystems App Generator"
-  });
-
+export function registerTools(server: McpServer): void {
   // Configuration tool - allows setting credentials at runtime
   server.tool(
     "configureOutSystemsEnvironment",
@@ -248,6 +241,19 @@ export function createMcpServer(): McpServer {
     }
   );
 
+}
+
+/**
+ * Initialize and configure the MCP server
+ */
+export function createMcpServer(): McpServer {
+  const server = new McpServer({
+    name: "outsystems-app-generator",
+    version: "3.0.0",
+    instructions: "Creates and deploys OutSystems applications from prompts.",
+    displayName: "OutSystems App Generator"
+  });
+  registerTools(server);
   return server;
 }
 

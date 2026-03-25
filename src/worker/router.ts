@@ -6,6 +6,7 @@ import { Env, McpInvokeRequest, HealthCheckResponse, MetricsResponse } from './t
 import { validateAuth, unauthorizedResponse } from './auth.js';
 import { createOutSystemsAppStream, healthCheckHandler } from '../mcp/handlers.js';
 import { handleCorsPreFlight, addCorsHeaders } from './cors.js';
+import { handleMcpStreamable } from './mcp-transport.js';
 
 // Simple metrics tracking
 let requestCount = 0;
@@ -14,7 +15,7 @@ const startTime = Date.now();
 /**
  * Routes incoming requests to appropriate handlers
  */
-export async function handleRequest(request: Request, env: Env): Promise<Response> {
+export async function handleRequest(request: Request, env: Env, ctx: ExecutionContext): Promise<Response> {
   const url = new URL(request.url);
   
   // Handle CORS preflight
@@ -35,13 +36,18 @@ export async function handleRequest(request: Request, env: Env): Promise<Respons
       return addCorsHeaders(handleMetrics(), request);
     }
     
-    // Protected MCP invoke endpoint
+    // MCP Streamable HTTP endpoint — used by Claude.ai connector and MCP clients
+    if (url.pathname === '/mcp') {
+      return handleMcpStreamable(request, env, ctx);
+    }
+
+    // Legacy MCP invoke endpoint (kept for backwards compatibility)
     if (url.pathname === '/mcp/invoke' && request.method === 'POST') {
       // Validate authentication
       if (!validateAuth(request, env)) {
         return addCorsHeaders(unauthorizedResponse(), request);
       }
-      
+
       return addCorsHeaders(await handleMcpInvoke(request, env), request);
     }
     
