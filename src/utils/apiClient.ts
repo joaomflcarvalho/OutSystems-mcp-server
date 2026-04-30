@@ -72,7 +72,8 @@ export class OutSystemsApiClient {
         throw new ApiError(response.status, endpoint, errorBody);
       }
 
-      return await response.json() as T;
+      const text = await response.text();
+      return (text ? JSON.parse(text) : undefined) as T;
     } catch (error: any) {
       if (error.name === 'AbortError') {
         throw new TimeoutError(endpoint, timeout);

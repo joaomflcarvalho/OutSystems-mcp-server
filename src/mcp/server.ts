@@ -171,73 +171,30 @@ export function registerTools(server: McpServer): void {
       }
 
       let lastUrl: string | null = null;
-      let lastText: string | null = null;
-      
-      logger.info('Creating OutSystems app', { 
-        promptLength: prompt.length 
-      });
+      const steps: string[] = [];
 
-      if (extra.progress) {
-        // Stream progress updates to the user
+      logger.info('Creating OutSystems app', { promptLength: prompt.length });
+
+      try {
         for await (const step of createAndDeployApp(prompt)) {
-          lastText = step;
-          
-          // Extract URL if present in the step
+          steps.push(step);
           const urlMatch = step.match(/https:\/\/\S+/);
-          if (urlMatch) {
-            lastUrl = urlMatch[0];
-          }
-          
-          extra.progress({ content: [{ type: "text", text: step }] });
+          if (urlMatch) lastUrl = urlMatch[0];
         }
-        
-        // Return final result
-        if (lastUrl && typeof lastUrl === "string" && lastUrl.startsWith("http")) {
-          logger.info('App creation completed successfully', { url: lastUrl });
-          return {
-            content: [
-              { type: "text", text: `🎉 Your OutSystems application is now live!\n\n📱 Access your app at:\n${lastUrl}` }
-            ],
-          };
-        } else {
-          return {
-            content: [
-              {
-                type: "text",
-                text: lastText || "App creation completed, but URL extraction failed.",
-              },
-            ],
-          };
-        }
-      } else {
-        // Fallback if extra.progress is not present
-        let finalMsg = "";
-        for await (const step of createAndDeployApp(prompt)) {
-          finalMsg = step;
-          const urlMatch = step.match(/https:\/\/\S+/);
-          if (urlMatch) {
-            lastUrl = urlMatch[0];
-          }
-        }
-        
-        if (lastUrl && typeof lastUrl === "string" && lastUrl.startsWith("http")) {
-          logger.info('App creation completed successfully', { url: lastUrl });
-          return {
-            content: [
-              { type: "text", text: `🎉 Your OutSystems application is now live!\n\n📱 Access your app at:\n${lastUrl}` }
-            ],
-          };
-        } else {
-          return {
-            content: [
-              {
-                type: "text",
-                text: finalMsg || "App creation completed, but URL extraction failed.",
-              },
-            ],
-          };
-        }
+      } catch {
+        // generator already pushed the ❌ message before throwing — fall through
       }
+
+      if (lastUrl) {
+        logger.info('App creation completed successfully', { url: lastUrl });
+        return {
+          content: [{ type: "text", text: steps.join('\n') }],
+        };
+      }
+
+      return {
+        content: [{ type: "text", text: steps.join('\n') || 'App creation failed.' }],
+      };
     }
   );
 

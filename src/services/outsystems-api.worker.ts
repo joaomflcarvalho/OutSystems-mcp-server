@@ -11,11 +11,12 @@ import {
   PublicationCreationResponse, 
   ApplicationDetails 
 } from '../types/api-types.js';
-import { 
-  OutSystemsApiClient, 
-  pollWithBackoff, 
-  withRetry, 
-  sanitizeErrorMessage 
+import {
+  OutSystemsApiClient,
+  pollWithBackoff,
+  withRetry,
+  sanitizeErrorMessage,
+  ApiError
 } from '../utils/apiClient.js';
 import { createLogger } from '../utils/logger.js';
 import { Env } from '../worker/types.js';
@@ -40,16 +41,15 @@ function generateUUID(): string {
  */
 async function startGenerationJob(
   client: OutSystemsApiClient,
-  token: string,
-  prompt: string
+  token: string
 ): Promise<string> {
   const jobData = await withRetry(() =>
     client.request<JobCreationResponse>(
-      '/api/app-generation/v1alpha3/jobs',
+      '/api/app-generation/v1alpha4/jobs',
       {
         method: 'POST',
         token,
-        body: { prompt, files: [], ignoreTenantContext: true },
+        body: { portfolioKey: null },
         timeout: 30000
       }
     )
@@ -71,7 +71,7 @@ async function getJobStatus(
   jobId: string
 ): Promise<JobStatus> {
   return await client.request<JobStatus>(
-    `/api/app-generation/v1alpha3/jobs/${jobId}`,
+    `/api/app-generation/v1alpha4/jobs/${jobId}`,
     { token, timeout: 15000 }
   );
 }
@@ -82,14 +82,16 @@ async function getJobStatus(
 async function triggerGeneration(
   client: OutSystemsApiClient,
   token: string,
-  jobId: string
+  jobId: string,
+  prompt: string
 ): Promise<void> {
   await withRetry(() =>
     client.request<void>(
-      `/api/app-generation/v1alpha3/jobs/${jobId}/generation`,
+      `/api/app-generation/v1alpha4/jobs/${jobId}/generation`,
       {
         method: 'POST',
         token,
+        body: prompt,
         timeout: 30000
       }
     )
@@ -178,7 +180,7 @@ export async function* createAndDeployApp(prompt: string, env: Env): AsyncGenera
     
     // --- App Generation Phase ---
     yield "🏗️ Step 1/7: Creating generation job...";
-    const jobId = await startGenerationJob(client, token, prompt);
+    const jobId = await startGenerationJob(client, token);
     yield `✓ Job created with ID: ${jobId}`;
     logger.info('Job created', { jobId });
 
@@ -200,7 +202,7 @@ export async function* createAndDeployApp(prompt: string, env: Env): AsyncGenera
     logger.info('Job ready for generation', { status: readyJobStatus.status });
 
     yield "⚙️ Step 3/7: Generating application logic...";
-    await triggerGeneration(client, token, jobId);
+    await triggerGeneration(client, token, jobId, prompt);
     yield "✓ Generation triggered successfully";
     logger.info('Generation triggered');
     
@@ -283,8 +285,8 @@ export async function* createAndDeployApp(prompt: string, env: Env): AsyncGenera
 
   } catch (error: any) {
     logger.error('App creation failed', error, { correlationId });
-    // Surface the specific error message (auth failures, API errors, OutSystems generation errors)
-    const msg = error.message ?? 'An unexpected error occurred. Please try again.';
+    const base = error.message ?? 'An unexpected error occurred. Please try again.';
+    const msg = (error instanceof ApiError && error.body) ? `${base} — ${error.body}` : base;
     yield `❌ ${msg}`;
     throw new Error(msg);
   }
