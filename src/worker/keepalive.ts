@@ -30,30 +30,41 @@ const KV_REFRESH_KEY = 'refresh_token';
  * Exchanges a Keycloak refresh token for an access token. The refresh token
  * rotates, so the newest one is persisted in KV; the secret is the bootstrap/fallback.
  */
-async function refreshAccessToken(env: Env, hostname: string): Promise<string> {
-  const oidc: any = await (await fetch(`https://${hostname}/identity/.well-known/openid-configuration`)).json();
+function decodeJwtPayload(jwt: string): any {
+  const part = jwt.split('.')[1] ?? '';
+  const b64 = part.replace(/-/g, '+').replace(/_/g, '/');
+  return JSON.parse(atob(b64 + '='.repeat((4 - (b64.length % 4)) % 4)));
+}
+
+async function refreshAccessToken(env: Env, _hostname: string): Promise<string> {
   const candidates: string[] = [];
   const stored = await env.KEEPALIVE_KV?.get(KV_REFRESH_KEY);
   if (stored) candidates.push(stored);
   if (env.KEEPALIVE_REFRESH_TOKEN && env.KEEPALIVE_REFRESH_TOKEN !== stored) candidates.push(env.KEEPALIVE_REFRESH_TOKEN);
 
-  let lastError = '';
+  let lastError = 'no refresh token available';
   for (const refreshToken of candidates) {
-    const res = await fetch(oidc.token_endpoint, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-      body: new URLSearchParams({
-        grant_type: 'refresh_token',
-        refresh_token: refreshToken,
-        client_id: 'unified_experience',
-      }).toString(),
-    });
-    const data: any = await res.json().catch(() => ({}));
-    if (res.ok && data.access_token) {
-      if (data.refresh_token && env.KEEPALIVE_KV) await env.KEEPALIVE_KV.put(KV_REFRESH_KEY, data.refresh_token);
-      return data.access_token;
+    try {
+      // The token itself says who issued it (central OutSystems IdP) and for which client.
+      const claims = decodeJwtPayload(refreshToken);
+      const res = await fetch(`${claims.iss}/protocol/openid-connect/token`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        body: new URLSearchParams({
+          grant_type: 'refresh_token',
+          refresh_token: refreshToken,
+          client_id: claims.azp,
+        }).toString(),
+      });
+      const data: any = await res.json().catch(() => ({}));
+      if (res.ok && data.access_token) {
+        if (data.refresh_token && env.KEEPALIVE_KV) await env.KEEPALIVE_KV.put(KV_REFRESH_KEY, data.refresh_token);
+        return data.access_token;
+      }
+      lastError = `${res.status} ${data.error ?? ''} ${data.error_description ?? ''}`.trim();
+    } catch (e: any) {
+      lastError = `unreadable refresh token (${e.message})`;
     }
-    lastError = `${res.status} ${data.error ?? ''} ${data.error_description ?? ''}`.trim();
   }
   throw new Error(`Refresh token rejected (${lastError}) — sign in again and re-set KEEPALIVE_REFRESH_TOKEN`);
 }
