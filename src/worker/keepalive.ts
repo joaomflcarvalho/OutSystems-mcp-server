@@ -18,11 +18,24 @@ export interface KeepAliveResult {
   listedApps: boolean;
   appCount?: number;
   endpoint?: string;
+  attempts?: Record<string, string>;
   error?: string;
 }
 
 // Undocumented API: candidate list endpoints, tried in order until one succeeds.
-const LIST_APPS_ENDPOINTS = ['/api/v1/applications', '/api/v1/applications?limit=50'];
+const LIST_APPS_ENDPOINTS = [
+  '/api/v1/applications',
+  '/api/v1/apps',
+  '/api/v1alpha1/applications',
+  '/api/v1alpha2/applications',
+  '/api/v2/applications',
+  '/api/applications',
+  '/api/app-generation/v1alpha4/applications',
+  '/api/app-management/v1/applications',
+  '/api/asset-management/v1/assets',
+  '/api/v1/assets',
+  '/api/v1/portfolios',
+];
 
 const KV_REFRESH_KEY = 'refresh_token';
 
@@ -94,6 +107,7 @@ export async function runKeepAlive(env: Env): Promise<KeepAliveResult> {
 
     const client = new OutSystemsApiClient(hostname);
     let lastError = '';
+    result.attempts = {};
     for (const endpoint of LIST_APPS_ENDPOINTS) {
       try {
         const data: any = await client.request<any>(endpoint, { token, timeout: 15000 });
@@ -101,8 +115,10 @@ export async function runKeepAlive(env: Env): Promise<KeepAliveResult> {
         result.listedApps = true;
         result.appCount = Array.isArray(items) ? items.length : undefined;
         result.endpoint = endpoint;
+        result.attempts[endpoint] = '200';
         break;
       } catch (e: any) {
+        result.attempts[endpoint] = String(e.status ?? e.message).slice(0, 60);
         lastError = `${endpoint}: ${e.message}`;
       }
     }
