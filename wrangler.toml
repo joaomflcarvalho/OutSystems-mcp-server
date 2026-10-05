@@ -7,9 +7,12 @@ compatibility_date = "2025-01-01"
 workers_dev = true
 minify = true
 
-# Keep-alive: every 4 hours (PE refresh session is ~12h) to prevent PE hibernation
+# Keep-alive: every 4 hours (headless browser login; stays within the free Browser Rendering quota) to prevent PE hibernation
 [triggers]
 crons = ["0 */4 * * *"]
+
+[browser]
+binding = "BROWSER"
 
 [[kv_namespaces]]
 binding = "KEEPALIVE_KV"
@@ -28,6 +31,7 @@ name = "outsystems-mcp-dev"
 name = "outsystems-mcp"
 triggers = { crons = ["0 */4 * * *"] }
 kv_namespaces = [{ binding = "KEEPALIVE_KV", id = "d3ba689d0c754cb19c9bc26ac73864b7" }]
+browser = { binding = "BROWSER" }
 routes = [
   # Add your custom routes here if needed
   # { pattern = "mcp.example.com/*", custom_domain = true }

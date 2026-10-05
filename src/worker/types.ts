@@ -15,9 +15,9 @@ export interface Env {
   KEEPALIVE_HOSTNAME?: string;
   KEEPALIVE_USERNAME?: string;
   KEEPALIVE_PASSWORD?: string;
-  // Keycloak refresh token (SSO accounts); newest rotated copy is kept in KEEPALIVE_KV
-  KEEPALIVE_REFRESH_TOKEN?: string;
-  KEEPALIVE_KV?: KVNamespace;
+  KEEPALIVE_KV?: KVNamespace; // saved browser session cookies
+  KEEPALIVE_ALERT_WEBHOOK?: string; // optional Slack-style webhook for failure alerts
+  BROWSER?: import('@cloudflare/puppeteer').BrowserWorker; // Browser Rendering binding
 
   // MCP Server Security
   MCP_SERVER_SECRET: string;
