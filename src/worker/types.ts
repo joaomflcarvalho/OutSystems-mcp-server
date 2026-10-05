@@ -15,6 +15,9 @@ export interface Env {
   KEEPALIVE_HOSTNAME?: string;
   KEEPALIVE_USERNAME?: string;
   KEEPALIVE_PASSWORD?: string;
+  // Keycloak refresh token (SSO accounts); newest rotated copy is kept in KEEPALIVE_KV
+  KEEPALIVE_REFRESH_TOKEN?: string;
+  KEEPALIVE_KV?: KVNamespace;
 
   // MCP Server Security
   MCP_SERVER_SECRET: string;

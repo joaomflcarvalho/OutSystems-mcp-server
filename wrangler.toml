@@ -11,6 +11,10 @@ minify = true
 [triggers]
 crons = ["0 7 * * *", "0 19 * * *"]
 
+[[kv_namespaces]]
+binding = "KEEPALIVE_KV"
+id = "d3ba689d0c754cb19c9bc26ac73864b7"
+
 # Build configuration
 [build]
 command = "npm run build"
@@ -23,6 +27,7 @@ name = "outsystems-mcp-dev"
 [env.production]
 name = "outsystems-mcp"
 triggers = { crons = ["0 7 * * *", "0 19 * * *"] }
+kv_namespaces = [{ binding = "KEEPALIVE_KV", id = "d3ba689d0c754cb19c9bc26ac73864b7" }]
 routes = [
   # Add your custom routes here if needed
   # { pattern = "mcp.example.com/*", custom_domain = true }

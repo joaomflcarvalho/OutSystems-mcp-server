@@ -24,6 +24,40 @@ export interface KeepAliveResult {
 // Undocumented API: candidate list endpoints, tried in order until one succeeds.
 const LIST_APPS_ENDPOINTS = ['/api/v1/applications', '/api/v1/applications?limit=50'];
 
+const KV_REFRESH_KEY = 'refresh_token';
+
+/**
+ * Exchanges a Keycloak refresh token for an access token. The refresh token
+ * rotates, so the newest one is persisted in KV; the secret is the bootstrap/fallback.
+ */
+async function refreshAccessToken(env: Env, hostname: string): Promise<string> {
+  const oidc: any = await (await fetch(`https://${hostname}/identity/.well-known/openid-configuration`)).json();
+  const candidates: string[] = [];
+  const stored = await env.KEEPALIVE_KV?.get(KV_REFRESH_KEY);
+  if (stored) candidates.push(stored);
+  if (env.KEEPALIVE_REFRESH_TOKEN && env.KEEPALIVE_REFRESH_TOKEN !== stored) candidates.push(env.KEEPALIVE_REFRESH_TOKEN);
+
+  let lastError = '';
+  for (const refreshToken of candidates) {
+    const res = await fetch(oidc.token_endpoint, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      body: new URLSearchParams({
+        grant_type: 'refresh_token',
+        refresh_token: refreshToken,
+        client_id: 'unified_experience',
+      }).toString(),
+    });
+    const data: any = await res.json().catch(() => ({}));
+    if (res.ok && data.access_token) {
+      if (data.refresh_token && env.KEEPALIVE_KV) await env.KEEPALIVE_KV.put(KV_REFRESH_KEY, data.refresh_token);
+      return data.access_token;
+    }
+    lastError = `${res.status} ${data.error ?? ''} ${data.error_description ?? ''}`.trim();
+  }
+  throw new Error(`Refresh token rejected (${lastError}) — sign in again and re-set KEEPALIVE_REFRESH_TOKEN`);
+}
+
 export async function runKeepAlive(env: Env): Promise<KeepAliveResult> {
   const hostname = env.KEEPALIVE_HOSTNAME;
   const result: KeepAliveResult = {
@@ -34,14 +68,17 @@ export async function runKeepAlive(env: Env): Promise<KeepAliveResult> {
     listedApps: false,
   };
 
-  if (!hostname || !env.KEEPALIVE_USERNAME || !env.KEEPALIVE_PASSWORD) {
-    result.error = 'Missing KEEPALIVE_HOSTNAME, KEEPALIVE_USERNAME or KEEPALIVE_PASSWORD';
+  const useRefresh = !!env.KEEPALIVE_REFRESH_TOKEN;
+  if (!hostname || (!useRefresh && (!env.KEEPALIVE_USERNAME || !env.KEEPALIVE_PASSWORD))) {
+    result.error = 'Missing KEEPALIVE_HOSTNAME and either KEEPALIVE_REFRESH_TOKEN or KEEPALIVE_USERNAME/KEEPALIVE_PASSWORD';
     return result;
   }
 
   try {
-    // Always a fresh login (no token cache) — the login is the activity we want.
-    const { token } = await getOutsystemsToken(hostname, env.KEEPALIVE_USERNAME, env.KEEPALIVE_PASSWORD);
+    // Always a fresh login/refresh (no token cache) — that is the activity we want.
+    const token = useRefresh
+      ? await refreshAccessToken(env, hostname)
+      : (await getOutsystemsToken(hostname, env.KEEPALIVE_USERNAME!, env.KEEPALIVE_PASSWORD!)).token;
     result.loggedIn = true;
 
     const client = new OutSystemsApiClient(hostname);
