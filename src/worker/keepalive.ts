@@ -18,42 +18,9 @@ export interface KeepAliveResult {
   listedApps: boolean;
   appCount?: number;
   endpoint?: string;
-  probes?: Record<string, string>;
   appNames?: unknown[];
   sample?: string;
   error?: string;
-}
-
-/**
- * Calls a tool on the tenant's OutSystems MCP endpoint (https://<host>/mcp, Streamable HTTP).
- */
-async function callOutSystemsMcpTool(hostname: string, token: string, name: string, args: Record<string, unknown>): Promise<any> {
-  const url = `https://${hostname}/mcp`;
-  const base = {
-    'Content-Type': 'application/json',
-    Accept: 'application/json, text/event-stream',
-    Authorization: `Bearer ${token}`,
-  };
-  const rpc = async (body: object, extra: Record<string, string> = {}) => {
-    const res = await fetch(url, { method: 'POST', headers: { ...base, ...extra }, body: JSON.stringify(body) });
-    const text = await res.text();
-    if (!res.ok) throw new Error(`MCP ${res.status}: ${text.slice(0, 120)}`);
-    // Response is JSON or an SSE stream containing one JSON "data:" line.
-    const dataLine = text.split('\n').find((l) => l.startsWith('data:'));
-    const payload = dataLine ? dataLine.slice(5).trim() : text.trim();
-    return { res, json: payload ? JSON.parse(payload) : null };
-  };
-
-  const init = await rpc({
-    jsonrpc: '2.0', id: 1, method: 'initialize',
-    params: { protocolVersion: '2025-03-26', capabilities: {}, clientInfo: { name: 'keepalive', version: '1.0.0' } },
-  });
-  const sessionId = init.res.headers.get('mcp-session-id');
-  const session: Record<string, string> = sessionId ? { 'Mcp-Session-Id': sessionId } : {};
-  await fetch(url, { method: 'POST', headers: { ...base, ...session }, body: JSON.stringify({ jsonrpc: '2.0', method: 'notifications/initialized' }) });
-  const call = await rpc({ jsonrpc: '2.0', id: 2, method: 'tools/call', params: { name, arguments: args } }, session);
-  if (call.json?.error) throw new Error(`MCP error: ${JSON.stringify(call.json.error).slice(0, 150)}`);
-  return call.json?.result;
 }
 
 const KV_REFRESH_KEY = 'refresh_token';
@@ -124,24 +91,19 @@ export async function runKeepAlive(env: Env): Promise<KeepAliveResult> {
       : (await getOutsystemsToken(hostname, env.KEEPALIVE_USERNAME!, env.KEEPALIVE_PASSWORD!)).token;
     result.loggedIn = true;
 
-    // Direct environment APIs (the ones the MCP server already uses).
+    // Asset Versioning API: GET /api/source-control/v2/assets (Bearer JWT)
     const client = new OutSystemsApiClient(hostname);
-    const nil = '00000000-0000-0000-0000-000000000000';
-    result.probes = {};
-    for (const endpoint of [
-      '/api/app-generation/v1alpha4/jobs',
-      `/api/v1/applications/${nil}`,
-      `/api/v1/publications/${nil}`,
-    ]) {
-      try {
-        await client.request<any>(endpoint, { token, timeout: 15000 });
-        result.probes[endpoint] = '200';
-        result.listedApps = true;
-      } catch (e: any) {
-        result.probes[endpoint] = `${e.status ?? ''} ${String(e.body ?? e.message).slice(0, 120)}`.trim();
-      }
+    const endpoint = '/api/source-control/v2/assets?limit=100&assetTypes=WebApplication&assetTypes=MobileApplication';
+    try {
+      const data: any = await client.request<any>(endpoint, { token, timeout: 20000 });
+      const items: any[] = data?.results ?? [];
+      result.listedApps = true;
+      result.endpoint = '/api/source-control/v2/assets';
+      result.appCount = data?.page?.totalResults ?? items.length;
+      result.appNames = items.slice(0, 50).map((a) => a.name);
+    } catch (e: any) {
+      result.error = `List apps failed: ${e.status ?? ''} ${String(e.body ?? e.message).slice(0, 160)}`.trim();
     }
-    if (!result.listedApps) result.error = 'No direct API call accepted the token (see probes)';
     result.ok = result.loggedIn && result.listedApps;
   } catch (e: any) {
     result.error = e.message;
