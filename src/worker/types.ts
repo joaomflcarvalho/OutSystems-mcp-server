@@ -11,6 +11,11 @@ export interface Env {
   // Cognito refresh token (bootstrapped once via scripts/bootstrap-token.ts)
   COGNITO_REFRESH_TOKEN: string;
 
+  // Keep-alive target (separate from OS_* so the MCP keeps using the demo env)
+  KEEPALIVE_HOSTNAME?: string;
+  KEEPALIVE_USERNAME?: string;
+  KEEPALIVE_PASSWORD?: string;
+
   // MCP Server Security
   MCP_SERVER_SECRET: string;
   

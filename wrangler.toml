@@ -5,8 +5,11 @@ compatibility_date = "2025-01-01"
 
 # Workers configuration
 workers_dev = true
-usage_model = "bundled"
 minify = true
+
+# Keep-alive: twice a day (UTC) to prevent PE hibernation
+[triggers]
+crons = ["0 7 * * *", "0 19 * * *"]
 
 # Build configuration
 [build]
@@ -19,6 +22,7 @@ name = "outsystems-mcp-dev"
 # Production configuration  
 [env.production]
 name = "outsystems-mcp"
+triggers = { crons = ["0 7 * * *", "0 19 * * *"] }
 routes = [
   # Add your custom routes here if needed
   # { pattern = "mcp.example.com/*", custom_domain = true }

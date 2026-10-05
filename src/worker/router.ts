@@ -7,6 +7,7 @@ import { validateAuth, unauthorizedResponse } from './auth.js';
 import { createOutSystemsAppStream, healthCheckHandler } from '../mcp/handlers.js';
 import { handleCorsPreFlight, addCorsHeaders } from './cors.js';
 import { handleMcpStreamable } from './mcp-transport.js';
+import { runKeepAlive } from './keepalive.js';
 
 // Simple metrics tracking
 let requestCount = 0;
@@ -39,6 +40,21 @@ export async function handleRequest(request: Request, env: Env, ctx: ExecutionCo
     // MCP Streamable HTTP endpoint — used by Claude.ai connector and MCP clients
     if (url.pathname === '/mcp') {
       return handleMcpStreamable(request, env, ctx);
+    }
+
+    // Keep-alive endpoint — callable from an OutSystems timer (Bearer MCP_SERVER_SECRET)
+    if (url.pathname === '/keepalive' && (request.method === 'POST' || request.method === 'GET')) {
+      if (!validateAuth(request, env)) {
+        return addCorsHeaders(unauthorizedResponse(), request);
+      }
+      const result = await runKeepAlive(env);
+      return addCorsHeaders(
+        new Response(JSON.stringify(result), {
+          status: result.ok ? 200 : 502,
+          headers: { 'Content-Type': 'application/json' }
+        }),
+        request
+      );
     }
 
     // Legacy MCP invoke endpoint (kept for backwards compatibility)
